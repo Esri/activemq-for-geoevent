@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<blueprint xmlns="http://www.osgi.org/xmlns/blueprint/v1.0.0">
+	<bean id="activemqInboundTransportServiceBean" class="com.esri.geoevent.transport.activemq.ActiveMQInboundTransportService" activation="eager">
+		<property name="bundleContext" ref="blueprintBundleContext"/>
+	</bean>
+	<bean id="activemqOutboundTransportServiceBean" class="com.esri.geoevent.transport.activemq.ActiveMQOutboundTransportService" activation="eager">
+		<property name="bundleContext" ref="blueprintBundleContext"/>
+	</bean>
+	<service id="activemqInboundTransportService" ref="activemqInboundTransportServiceBean" interface="com.esri.ges.transport.TransportService"/>
+	<service id="activemqOutboundTransportService" ref="activemqOutboundTransportServiceBean" interface="com.esri.ges.transport.TransportService"/>
+</blueprint>

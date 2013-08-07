@@ -14,8 +14,7 @@
 		<contact.address>geoevent@esri.com</contact.address>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<maven.bundle.plugin.version>2.3.6</maven.bundle.plugin.version>
-		<junit.version>4.8.1</junit.version>
-		<jackson.version>1.9.5</jackson.version>
+		<activemq.version>5.5.1</activemq.version>
 	</properties>
 
 	<modules>
@@ -38,10 +37,9 @@
 			<version>10.2.0</version>
 		</dependency>
 		<dependency>
-			<groupId>junit</groupId>
-			<artifactId>junit</artifactId>
-			<version>${junit.version}</version>
-			<scope>test</scope>
+				<groupId>org.apache.activemq</groupId>
+				<artifactId>activemq-camel</artifactId>
+				<version>${activemq.version}</version>
 		</dependency>
 	</dependencies>
 
