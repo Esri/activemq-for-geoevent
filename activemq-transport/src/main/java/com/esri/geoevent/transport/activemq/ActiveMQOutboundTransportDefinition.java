@@ -70,7 +70,7 @@ public class ActiveMQOutboundTransportDefinition extends TransportDefinitionBase
   @Override
   public String getDomain()
   {
-    return "com.esri.ges.transport.outbound";
+    return "com.esri.geoevent.transport.outbound";
   }
 
   @Override
