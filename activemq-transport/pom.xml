@@ -11,15 +11,7 @@
 	<artifactId>activemq-transport</artifactId>
 	<name>Esri :: GeoEvent :: Transport :: ActiveMQ</name>
 	<packaging>bundle</packaging>
-	<dependencies>
-		<dependency>
-			<groupId>log4j</groupId>
-			<artifactId>log4j</artifactId>
-			<version>[1.2.9,)</version>
-			<scope>provided</scope>
-			<optional>true</optional>
-		</dependency>
-	</dependencies>
+	
 	<build>
 		<plugins>
 			<plugin>
@@ -38,8 +30,7 @@
 						</Import-Package>
 						<Export-Package/>
 						<Embed-Dependency>
-							*;scope=compile|runtime;inline=true,
-							log4j;inline=true
+							*;scope=compile|runtime;inline=true
 						</Embed-Dependency>
 						<Embed-Transitive>true</Embed-Transitive>
 					</instructions>
