@@ -94,7 +94,7 @@ public class ActiveMQInboundTransport extends InboundTransportBase implements Ru
       String exceptionMessage = exception.getMessage();
       if (exceptionMessage.equals("Stopped."))
       {
-        log.trace("JMS Exception \"Stopped.\" occurred during initialization of transport service thread. This may occur if the input is stopped manually before the connection has completed.");
+        log.warn("JMS Exception \"Stopped.\" during initialization of transport service thread. This may occur if the input is stopped before completing the connection.");
       }
       else
       {
@@ -270,7 +270,6 @@ public class ActiveMQInboundTransport extends InboundTransportBase implements Ru
       if (amqConn.getTransport().isFaultTolerant()) {
         amqConn.addTransportListener(new TransportListener()
         {
-          private boolean wasStarted = false;
           @Override
           public void onCommand(Object command) {
             // ignore
@@ -283,20 +282,11 @@ public class ActiveMQInboundTransport extends InboundTransportBase implements Ru
           public void transportInterupted()
           {
             log.warn("ActiveMQ input transport - connection interrupted");
-            if (RunningState.STARTED.equals(getRunningState()))
-            {
-              setRunningState(RunningState.STARTING);
-              wasStarted = true;
-            }
           }
           @Override
           public void transportResumed()
           {
             log.warn("ActiveMQ input transport - connection resumed");
-            if (wasStarted && RunningState.STARTING.equals(getRunningState()))
-            {
-              setRunningState(RunningState.STARTED);
-            }
           }
         });
       }
