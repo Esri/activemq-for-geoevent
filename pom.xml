@@ -4,7 +4,7 @@
 
 	<groupId>com.esri.geoevent.parent</groupId>
 	<artifactId>activemq</artifactId>
-	<version>10.2.0</version>
+	<version>10.3.0</version>
 	<packaging>pom</packaging>
 
 	<name>Esri :: GeoEvent :: ActiveMQ</name>
@@ -34,12 +34,13 @@
 		<dependency>
 			<groupId>com.esri.geoevent.sdk</groupId>
 			<artifactId>geoevent-sdk</artifactId>
-			<version>10.2.0</version>
+			<version>10.3.0</version>
+			<scope>provided</scope>
 		</dependency>
 		<dependency>
-				<groupId>org.apache.activemq</groupId>
-				<artifactId>activemq-camel</artifactId>
-				<version>${activemq.version}</version>
+			<groupId>org.apache.activemq</groupId>
+			<artifactId>activemq-camel</artifactId>
+			<version>${activemq.version}</version>
 		</dependency>
 	</dependencies>
 
@@ -57,8 +58,8 @@
 					<artifactId>maven-compiler-plugin</artifactId>
 					<version>2.5.1</version>
 					<configuration>
-						<source>1.6</source>
-						<target>1.6</target>
+						<source>1.7</source>
+						<target>1.7</target>
 					</configuration>
 				</plugin>
 			</plugins>
