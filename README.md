@@ -1,6 +1,6 @@
 # activemq-for-geoevent
 
-ArcGIS 10.3.x GeoEvent Extension Sample ActiveMQ connectors for connecting to ActiveMQ Message Servers.
+ArcGIS 10.3 GeoEvent Extension for Server sample ActiveMQ connectors for connecting to ActiveMQ Message Servers.
 
 ![App](activemq-for-geoevent.png?raw=true)
 
