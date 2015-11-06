@@ -10,6 +10,7 @@
 	<groupId>com.esri.geoevent.transport</groupId>
 	<artifactId>activemq-transport</artifactId>
 	<name>Esri :: GeoEvent :: Transport :: ActiveMQ</name>
+	<version>10.3.0-5.12.1</version>
 	<packaging>bundle</packaging>
 	
 	<build>
