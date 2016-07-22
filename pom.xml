@@ -14,7 +14,7 @@
 		<contact.address>geoevent@esri.com</contact.address>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<maven.bundle.plugin.version>2.3.6</maven.bundle.plugin.version>
-		<activemq.version>5.12.1</activemq.version>
+		<activemq.version>5.13.4</activemq.version><!-- update to latest major release -->
 	</properties>
 
 	<modules>
@@ -34,12 +34,23 @@
 		<dependency>
 			<groupId>com.esri.geoevent.sdk</groupId>
 			<artifactId>geoevent-sdk</artifactId>
-			<version>10.3.0</version>
+			<version>10.4.1</version><!-- update to earliest version being targeted -->
 			<scope>provided</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.activemq</groupId>
+					<artifactId>activemq-camel</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.activemq</groupId>
-			<artifactId>activemq-camel</artifactId>
+			<artifactId>activemq-client</artifactId>
+			<version>${activemq.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.activemq</groupId>
+			<artifactId>activemq-broker</artifactId>
 			<version>${activemq.version}</version>
 		</dependency>
 	</dependencies>
