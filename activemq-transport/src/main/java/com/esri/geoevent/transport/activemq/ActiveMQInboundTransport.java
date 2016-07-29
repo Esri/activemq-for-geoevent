@@ -35,25 +35,29 @@ import java.util.UUID;
 
 import javax.jms.BytesMessage;
 import javax.jms.Connection;
-import javax.jms.ConnectionFactory;
+//import javax.jms.ConnectionFactory;
 import javax.jms.ExceptionListener;
 import javax.jms.JMSException;
 import javax.jms.Message;
+import javax.jms.Destination;
 import javax.jms.MessageConsumer;
 import javax.jms.ObjectMessage;
 import javax.jms.Session;
 import javax.jms.TextMessage;
 
 import org.apache.activemq.ActiveMQConnectionFactory;
+import org.apache.activemq.ActiveMQConnection;
+import org.apache.activemq.transport.TransportListener;
 
 import com.esri.ges.core.component.ComponentException;
 import com.esri.ges.core.component.RunningState;
+import com.esri.ges.core.property.Property;
 import com.esri.ges.framework.i18n.BundleLogger;
 import com.esri.ges.framework.i18n.BundleLoggerFactory;
 import com.esri.ges.transport.InboundTransportBase;
 import com.esri.ges.transport.TransportDefinition;
 import com.esri.ges.transport.TransportException;
-import com.esri.ges.util.Validator;
+//import com.esri.ges.util.Validator;
 
 public class ActiveMQInboundTransport extends InboundTransportBase implements Runnable
 {
@@ -63,8 +67,9 @@ public class ActiveMQInboundTransport extends InboundTransportBase implements Ru
 	private Connection								connection;
 	private Session										session;
 	private MessageConsumer						messageConsumer;
-	private Thread										starterThread;
-	private String										channelId;
+	private volatile Thread						starterThread;
+	private final String								channelId;
+	private final Object								syncLock = new Object();
 
 	public ActiveMQInboundTransport(TransportDefinition definition) throws ComponentException
 	{
@@ -170,32 +175,44 @@ public class ActiveMQInboundTransport extends InboundTransportBase implements Ru
 		}
 	}
 
-	@SuppressWarnings("incomplete-switch")
 	@Override
-	public synchronized void start()
+	public void start()
 	{
-		switch (getRunningState())
-		{
-			case STARTING:
-			case STARTED:
-				return;
-		}
-		if (starterThread == null || !starterThread.isAlive())
-		{
-			starterThread = new Thread(new ActiveMQByteInboundTransportStarter(this, 60000));
-			starterThread.start();
+		synchronized (syncLock) {
+			cleanup();
+			switch (getRunningState())
+			{
+				case STARTING:
+				case STARTED:
+					return;
+			}
+			if (starterThread == null || !starterThread.isAlive())
+			{
+				starterThread = new Thread(new ActiveMQByteInboundTransportStarter(this, 30000));
+				starterThread.start();
+			}
 		}
 	}
 
 	@Override
-	public synchronized void stop()
+	public void stop()
 	{
-		if (!RunningState.STOPPED.equals(getRunningState()))
-		{
-			starterThread = null;
-			setRunningState(RunningState.STOPPING);
-			cleanup();
-			setRunningState(RunningState.STOPPED);
+		synchronized (syncLock) {
+			if (!RunningState.STOPPED.equals(getRunningState()))
+			{
+				final Thread oldStarterThread = starterThread;
+				starterThread = null;
+				
+				setRunningState(RunningState.STOPPING);
+				cleanup();
+				setRunningState(RunningState.STOPPED);
+				
+				if (oldStarterThread != null && oldStarterThread != Thread.currentThread()) {
+					if (oldStarterThread.isAlive() && !oldStarterThread.isInterrupted()) {
+						oldStarterThread.interrupt();
+					}
+				}
+			}
 		}
 	}
 
@@ -204,95 +221,201 @@ public class ActiveMQInboundTransport extends InboundTransportBase implements Ru
 		return errorMessage;
 	}
 
-	private synchronized void setup() throws TransportException
-	{
-		try
-		{
-			if (getProperty("userName") != null && getProperty("password") != null)
-			{
-				ConnectionFactory factory = new ActiveMQConnectionFactory(getProperty("userName").getValueAsString(), getProperty("password").getDecryptedValue(), getProperty("providerUrl").getValueAsString());
-				connection = factory.createConnection(getProperty("userName").getValueAsString(), getProperty("password").getDecryptedValue());
+	private boolean setup() throws TransportException {
+		try {
+			ActiveMQConnectionFactory factory = new ActiveMQConnectionFactory(getProperty("providerUrl").getValueAsString());
+			Property userNameProp = getProperty("userName");
+			Property passwordProp = getProperty("password");
+			if (userNameProp != null && passwordProp != null) {
+				try {
+					factory.setUserName(userNameProp.getValueAsString()); // null or blank should be fine
+				} catch (Exception e) {
+					throw new TransportException("User name property access failed - " + e.getMessage());
+				}
+				try {
+					factory.setPassword(passwordProp.getDecryptedValue());
+				} catch (Exception e) {
+					throw new TransportException("Password encrypted property access failed - " + e.getMessage());
+				}
 			}
-			else
-			{
-				ConnectionFactory factory = new ActiveMQConnectionFactory(getProperty("providerUrl").getValueAsString());
-				connection = factory.createConnection();
-			}
-			if (connection == null)
+			
+			final ActiveMQConnection amqConn = (ActiveMQConnection) factory.createConnection();
+			if (amqConn == null) {
 				throw new TransportException(LOGGER.translate("JMS_CONNECTION_FAILURE", getProperty("providerUrl").getValueAsString()));
-			connection.setExceptionListener(new ExceptionListener()
-				{
-					@Override
-					public void onException(JMSException exception)
-					{
-						setRunningState(RunningState.STOPPING);
-						cleanup();
-						setRunningState(RunningState.ERROR);
-						errorMessage = exception.getMessage();
-						LOGGER.error(errorMessage, exception);
+			}
+
+			Session localSession = null;
+			MessageConsumer localConsumer = null;
+			
+			try {
+				synchronized (syncLock) {
+					if (starterThread != null && RunningState.STARTING.equals(getRunningState()) && Thread.currentThread() == starterThread) {
+						amqConn.setExceptionListener(new ExceptionListener() {
+							@Override
+														public void onException(JMSException exception) {
+								synchronized (syncLock) {
+									if (amqConn == connection && starterThread != null && starterThread.isAlive()) {
+										errorMessage = exception.getMessage();
+										LOGGER.error(errorMessage, exception);
+										
+										setRunningState(RunningState.STOPPING);
+										cleanup();
+										setRunningState(RunningState.ERROR);
+									}
+								}
+							}
+						});
+						
+						if (amqConn.getTransport().isFaultTolerant()) {
+							amqConn.addTransportListener(new TransportListener() {
+								@Override
+																public void onCommand(Object command) {
+									// ignore
+								}
+
+								@Override
+																public void onException(IOException exception) {
+									if (amqConn == connection) {
+										LOGGER.warn("ActiveMQ input transport - IO exception - " + exception.getMessage());
+									}
+								}
+
+								@Override
+																public void transportInterupted() {
+									if (amqConn == connection) {
+										LOGGER.warn("ActiveMQ input transport - connection interrupted");
+									}
+								}
+
+								@Override
+																public void transportResumed() {
+									if (amqConn == connection) {
+										LOGGER.warn("ActiveMQ input transport - connection resumed");
+									}
+								}
+							});
+						}
+
+						connection = amqConn; // by setting this first, it can be closed in cleanup(), if a new starterThread is run
+					} else {
+						LOGGER.error("ActiveMQ Transport startup interupted. Discarding any partially initialized ActiveMQ session resources.");
+						return false;
 					}
-				});
-			connection.start();
-			session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
-			ActiveMQDestinationType type = Validator.valueOfIgnoreCase(ActiveMQDestinationType.class, getProperty("destinationType").getValueAsString(), ActiveMQDestinationType.Queue);
-			messageConsumer = session.createConsumer(type.equals(ActiveMQDestinationType.Topic) ? session.createTopic(getProperty("destinationName").getValueAsString()) : session.createQueue(getProperty("destinationName").getValueAsString()));
-		}
-		catch (JMSException e)
-		{
-			cleanup();
-			throw new TransportException(e.getMessage());
-		}
-		catch (Exception e)
-		{
-			cleanup();
-			throw new TransportException(e.getMessage());
+				}
+			
+				// keep the initialization outside of the synchronized block, as next line may take an indefinite amount of time
+				try {
+					amqConn.start();
+				} catch (JMSException e) {
+					if (e.getMessage().equals("Stopped.")) {
+						LOGGER.warn("A JMS 'Stopped' exception occurred when starting the ActiveMQ connection. This probably indicates the GeoEvent input was stopped before initialization could complete.");
+						return false;
+					}
+					throw e;
+				}
+				
+				localSession = amqConn.createSession(false, Session.AUTO_ACKNOWLEDGE);
+				
+				Destination destination;
+				String destName = getProperty("destinationName").getValueAsString();
+				String destType = getProperty("destinationType").getValueAsString().toLowerCase();
+				if ("topic".equals(destType)) {
+					destination = localSession.createTopic(destName);
+				} else if ("queue".equals(destType) || destType.isEmpty()) {
+					destination = localSession.createQueue(destName);
+				} else {
+					throw new TransportException("ActiveMQ Input Transport validation error	 - only 'queue' and 'topic' are expected for Destination Type; '" + destType + "' was specified. Aborting");
+				}
+				localConsumer = localSession.createConsumer(destination);
+
+				synchronized (syncLock) {
+					// confirm consistent state before applying changes to internal object state
+					if (amqConn == connection) {
+						if (starterThread == Thread.currentThread() && RunningState.STARTING.equals(getRunningState())) {
+							session = localSession;
+							messageConsumer = localConsumer;
+							return true;
+						} else {
+							cleanup(); // in addition to error message below and return false
+						}
+					}
+					LOGGER.error("ActiveMQ Input Transport startup interupted before initialization completed. Releasing ActiveMQ session resources initialized in background.");
+					return false; // no exception but finally block will execute
+				}
+			} finally {
+				// quietly close any unreferenced resources before returning or proceeding to exception handler below
+				
+				if (localConsumer != null && localConsumer != messageConsumer) {
+					localConsumer.close();
+				}
+				if (localSession != null && localSession != session) {
+					localSession.close();
+				}
+				if (amqConn != connection && connection != null) {
+					amqConn.close(); // if connection was cleared it was already closed by cleanup() above
+				}
+			}
+		} catch (JMSException|TransportException e) {
+			
+			synchronized (syncLock) {
+				if (starterThread != null && starterThread == Thread.currentThread() && connection != null) {
+					cleanup();
+					setRunningState(RunningState.ERROR);
+				}
+			}
+			
+			TransportException containerException = new TransportException("ActiveMQ connection setup failed - " + e.getMessage());
+			containerException.initCause(e);
+			throw containerException;
 		}
 	}
 
-	private synchronized void cleanup()
+	private void cleanup()
 	{
-		try
-		{
-			if (messageConsumer != null)
+		synchronized (syncLock) {
+			try
 			{
-				messageConsumer.close();
-				messageConsumer = null;
+				if (messageConsumer != null)
+				{
+					messageConsumer.close();
+					messageConsumer = null;
+				}
 			}
-		}
-		catch (Throwable ignore)
-		{
-			;
-		}
-		try
-		{
-			if (session != null)
+			catch (Throwable ignore)
 			{
-				session.close();
-				session = null;
+				;
 			}
-		}
-		catch (Throwable ignore)
-		{
-			;
-		}
-		try
-		{
-			if (connection != null)
+			try
 			{
-				connection.close();
-				connection = null;
+				if (session != null)
+				{
+					session.close();
+					session = null;
+				}
 			}
-		}
-		catch (Throwable ignore)
-		{
-			;
+			catch (Throwable ignore)
+			{
+				;
+			}
+			try
+			{
+				if (connection != null)
+				{
+					connection.close();
+					connection = null;
+				}
+			}
+			catch (Throwable ignore)
+			{
+				;
+			}
 		}
 	}
 
 	private class ActiveMQByteInboundTransportStarter implements Runnable
 	{
-		private ActiveMQInboundTransport	transport;
-		private long											timeout;
+		final private ActiveMQInboundTransport	transport;
+		final private long						timeout;
 
 		public ActiveMQByteInboundTransportStarter(ActiveMQInboundTransport transport, long timeout)
 		{
@@ -303,7 +426,7 @@ public class ActiveMQInboundTransport extends InboundTransportBase implements Ru
 		@Override
 		public void run()
 		{
-			while (starterThread != null)
+			while (starterThread != null && starterThread == Thread.currentThread())
 			{
 				switch (getRunningState())
 				{
@@ -315,17 +438,23 @@ public class ActiveMQInboundTransport extends InboundTransportBase implements Ru
 						try
 						{
 							setRunningState(RunningState.STARTING);
-							setup();
-							new Thread(transport).start();
+							if (setup()) {
+								if (RunningState.STARTING.equals(getRunningState())) {
+									new Thread(transport).start();
+								}
+								// fall through to break out of switch and repeat monitor loop
+							} else {
+								// running state should have been set, or not, and cleanup called if appropriate
+								return;
+							}
 						}
 						catch (TransportException e)
 						{
 							errorMessage = e.getMessage();
-							setRunningState(RunningState.ERROR);
 							LOGGER.error(errorMessage, e);
 						}
-					}
 						break;
+					}
 					default:
 						errorMessage = "";
 						break;
