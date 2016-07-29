@@ -48,10 +48,29 @@
 			<artifactId>activemq-client</artifactId>
 			<version>${activemq.version}</version>
 		</dependency>
+		<!-- next needed to embed a broker via the vm and peer transports -->
 		<dependency>
 			<groupId>org.apache.activemq</groupId>
 			<artifactId>activemq-broker</artifactId>
 			<version>${activemq.version}</version>
+		</dependency>
+		<!-- next needed even if persistent=false is specified for broker -->
+		<dependency>
+			<groupId>org.apache.activemq</groupId>
+			<artifactId>activemq-kahadb-store</artifactId>
+			<version>${activemq.version}</version>
+		</dependency>
+		<!-- next would support XBean configuration of embedded brokers -->
+		<dependency>
+			<groupId>org.apache.activemq</groupId>
+			<artifactId>activemq-spring</artifactId>
+			<version>${activemq.version}</version>
+		</dependency>
+		<!-- unknown if this is needed; docs say yes but may out of date -->
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+			<version>1.7.21</version>
 		</dependency>
 	</dependencies>
 
