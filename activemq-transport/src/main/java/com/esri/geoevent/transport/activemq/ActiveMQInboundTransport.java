@@ -249,18 +249,20 @@ public class ActiveMQInboundTransport extends InboundTransportBase implements Ru
 			
 			try {
 				synchronized (syncLock) {
-					if (starterThread != null && RunningState.STARTING.equals(getRunningState()) && Thread.currentThread() == starterThread) {
+					if (RunningState.STARTING.equals(getRunningState()) && starterThread == Thread.currentThread()) {
 						amqConn.setExceptionListener(new ExceptionListener() {
 							@Override
-														public void onException(JMSException exception) {
-								synchronized (syncLock) {
-									if (amqConn == connection && starterThread != null && starterThread.isAlive()) {
-										errorMessage = exception.getMessage();
-										LOGGER.error(errorMessage, exception);
+							public void onException(JMSException exception) {
+								if (amqConn == connection) {
+									synchronized (syncLock) {
+										if (amqConn == connection) {
+											errorMessage = exception.getMessage();
+											LOGGER.error(errorMessage, exception);
 										
-										setRunningState(RunningState.STOPPING);
-										cleanup();
-										setRunningState(RunningState.ERROR);
+											setRunningState(RunningState.STOPPING);
+											cleanup();
+											setRunningState(RunningState.ERROR);
+										}
 									}
 								}
 							}
@@ -269,26 +271,26 @@ public class ActiveMQInboundTransport extends InboundTransportBase implements Ru
 						if (amqConn.getTransport().isFaultTolerant()) {
 							amqConn.addTransportListener(new TransportListener() {
 								@Override
-																public void onCommand(Object command) {
+								public void onCommand(Object command) {
 									// ignore
 								}
 
 								@Override
-																public void onException(IOException exception) {
+								public void onException(IOException exception) {
 									if (amqConn == connection) {
 										LOGGER.warn("ActiveMQ input transport - IO exception - " + exception.getMessage());
 									}
 								}
 
 								@Override
-																public void transportInterupted() {
+								public void transportInterupted() {
 									if (amqConn == connection) {
 										LOGGER.warn("ActiveMQ input transport - connection interrupted");
 									}
 								}
 
 								@Override
-																public void transportResumed() {
+								public void transportResumed() {
 									if (amqConn == connection) {
 										LOGGER.warn("ActiveMQ input transport - connection resumed");
 									}
@@ -296,7 +298,7 @@ public class ActiveMQInboundTransport extends InboundTransportBase implements Ru
 							});
 						}
 
-						connection = amqConn; // by setting this first, it can be closed in cleanup(), if a new starterThread is run
+						connection = amqConn; // by setting this first, it can be closed via cleanup() even if it blocks on amqConn.start()
 					} else {
 						LOGGER.error("ActiveMQ Transport startup interupted. Discarding any partially initialized ActiveMQ session resources.");
 						return false;
@@ -329,36 +331,42 @@ public class ActiveMQInboundTransport extends InboundTransportBase implements Ru
 				localConsumer = localSession.createConsumer(destination);
 
 				synchronized (syncLock) {
-					// confirm consistent state before applying changes to internal object state
+					// Do not modify object state if starter thread is no longer current or state has changed.
+					
+					// Normally the framework would have sent a stop() before it ever launched another starter
+					// thread, and the stop() would raise an exception in the old starter thread if it was stuck
+					// in setup(). However, these extra integrity tests may protect against a very slight chance
+					// that the old thread could be stopped and a new thread started at "just the wrong moment"
+					// such that no exception has been caught, but the old starter thread has become defunct.
+					
 					if (amqConn == connection) {
-						if (starterThread == Thread.currentThread() && RunningState.STARTING.equals(getRunningState())) {
+						// confirm consistent state before applying changes to internal object state
+						if (RunningState.STARTING.equals(getRunningState()) && starterThread == Thread.currentThread()) {
 							session = localSession;
 							messageConsumer = localConsumer;
 							return true;
 						} else {
-							cleanup(); // in addition to error message below and return false
+							cleanup();
 						}
 					}
-					LOGGER.error("ActiveMQ Input Transport startup interupted before initialization completed. Releasing ActiveMQ session resources initialized in background.");
-					return false; // no exception but finally block will execute
+					// fall through to report error and return false, unless already returned true above
+					LOGGER.error("ActiveMQ Input Transport startup was interupted before initialization completed. Releasing any ActiveMQ session that were initialized but not used.");
+					return false; // no exception in this case, but finally block will still execute
 				}
 			} finally {
-				// quietly close any unreferenced resources before returning or proceeding to exception handler below
-				
 				if (localConsumer != null && localConsumer != messageConsumer) {
 					localConsumer.close();
 				}
 				if (localSession != null && localSession != session) {
 					localSession.close();
 				}
-				if (amqConn != connection && connection != null) {
-					amqConn.close(); // if connection was cleared it was already closed by cleanup() above
+				if (amqConn != connection && !amqConn.isClosing() && !amqConn.isClosed()) {
+					amqConn.close(); // can't be null, but may have already been closed by cleanup()
 				}
 			}
 		} catch (JMSException|TransportException e) {
-			
 			synchronized (syncLock) {
-				if (starterThread != null && starterThread == Thread.currentThread() && connection != null) {
+				if (starterThread == Thread.currentThread() && connection != null) {
 					cleanup();
 					setRunningState(RunningState.ERROR);
 				}
@@ -377,8 +385,9 @@ public class ActiveMQInboundTransport extends InboundTransportBase implements Ru
 			{
 				if (messageConsumer != null)
 				{
-					messageConsumer.close();
+					MessageConsumer m = messageConsumer;
 					messageConsumer = null;
+					m.close();
 				}
 			}
 			catch (Throwable ignore)
@@ -389,8 +398,9 @@ public class ActiveMQInboundTransport extends InboundTransportBase implements Ru
 			{
 				if (session != null)
 				{
-					session.close();
+					Session s = session;
 					session = null;
+					s.close();
 				}
 			}
 			catch (Throwable ignore)
@@ -401,8 +411,9 @@ public class ActiveMQInboundTransport extends InboundTransportBase implements Ru
 			{
 				if (connection != null)
 				{
-					connection.close();
+					Connection c = connection;
 					connection = null;
+					c.close();
 				}
 			}
 			catch (Throwable ignore)
