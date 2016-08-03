@@ -64,7 +64,7 @@ public class ActiveMQInboundTransport extends InboundTransportBase implements Ru
 	private static final BundleLogger	LOGGER	= BundleLoggerFactory.getLogger(ActiveMQInboundTransport.class);
 
 	private String										errorMessage;
-	private Connection								connection;
+	private volatile Connection							connection;
 	private Session										session;
 	private MessageConsumer						messageConsumer;
 	private volatile Thread						starterThread;
