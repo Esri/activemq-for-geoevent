@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.net.URLDecoder;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
@@ -52,6 +53,7 @@ import org.apache.activemq.transport.TransportListener;
 import com.esri.ges.core.component.ComponentException;
 import com.esri.ges.core.component.RunningState;
 import com.esri.ges.core.property.Property;
+import com.esri.ges.core.validation.ValidationException;
 import com.esri.ges.framework.i18n.BundleLogger;
 import com.esri.ges.framework.i18n.BundleLoggerFactory;
 import com.esri.ges.transport.InboundTransportBase;
@@ -220,6 +222,28 @@ public class ActiveMQInboundTransport extends InboundTransportBase implements Ru
 	{
 		return errorMessage;
 	}
+	
+	@Override
+	public void validate() throws ValidationException {
+		String destType = getProperty("destinationType").getValueAsString();
+		if ("topic".equalsIgnoreCase(destType) || "queue".equalsIgnoreCase(destType) || destType == null || destType.isEmpty()) {
+			String destName = getProperty("destinationName").getValueAsString();
+			if (destName != null && !destName.isEmpty()) {
+				int queryPos = destName.indexOf('?');
+				if (queryPos >= 0) {
+					try {
+						URLDecoder.decode(destName.substring(queryPos), "UTF-8");
+					} catch (Exception e) {
+						throw new ValidationException("Optional parameters in Destination Name are not escaped properly and cannot be decoded.");
+					}
+				}
+			} else {
+				throw new ValidationException("Destination Name must be configured. Current value is null or blank.");
+			}
+		} else {
+			throw new ValidationException("A valid Destination Type must be configured. Acceptable values are 'queue' and 'topic' (case insensitive), or else leave blank for default ('queue').");
+		}
+	}
 
 	private boolean setup() throws TransportException {
 		try {
@@ -320,14 +344,17 @@ public class ActiveMQInboundTransport extends InboundTransportBase implements Ru
 				
 				Destination destination;
 				String destName = getProperty("destinationName").getValueAsString();
-				String destType = getProperty("destinationType").getValueAsString().toLowerCase();
-				if ("topic".equals(destType)) {
-					destination = localSession.createTopic(destName);
-				} else if ("queue".equals(destType) || destType.isEmpty()) {
-					destination = localSession.createQueue(destName);
-				} else {
-					throw new TransportException("ActiveMQ Input Transport validation error	 - only 'queue' and 'topic' are expected for Destination Type; '" + destType + "' was specified. Aborting");
-				}
+				String destType = getProperty("destinationType").getValueAsString();
+
+				// In ActiveMQ 5.13.4, next line may raise an IllegalArgumentException even though
+				// the only declared exception type is JMSException - observed when the destination
+				// name contained optional parameters with invalid characters that are not escaped.
+				// Rather than trap for an unadvertised exception, this is prevented via validate().
+				
+				destination = "topic".equalsIgnoreCase(destType)
+						? localSession.createTopic(destName)
+						: localSession.createQueue(destName);
+				
 				localConsumer = localSession.createConsumer(destination);
 
 				synchronized (syncLock) {
