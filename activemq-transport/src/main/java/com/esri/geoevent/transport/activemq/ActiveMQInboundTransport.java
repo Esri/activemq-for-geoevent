@@ -32,6 +32,8 @@ import java.io.Serializable;
 import java.net.URLDecoder;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+//import java.util.ArrayList;
+//import java.util.List;
 import java.util.UUID;
 
 import javax.jms.BytesMessage;
@@ -52,8 +54,9 @@ import org.apache.activemq.transport.TransportListener;
 
 import com.esri.ges.core.component.ComponentException;
 import com.esri.ges.core.component.RunningState;
+import com.esri.ges.core.component.ClusterCommand;
 import com.esri.ges.core.property.Property;
-import com.esri.ges.core.validation.ValidationException;
+//import com.esri.ges.core.validation.ValidationException;
 import com.esri.ges.framework.i18n.BundleLogger;
 import com.esri.ges.framework.i18n.BundleLoggerFactory;
 import com.esri.ges.transport.InboundTransportBase;
@@ -65,10 +68,10 @@ public class ActiveMQInboundTransport extends InboundTransportBase implements Ru
 {
 	private static final BundleLogger	LOGGER	= BundleLoggerFactory.getLogger(ActiveMQInboundTransport.class);
 
-	private String										errorMessage;
+	private volatile String								errorMessage;
 	private volatile Connection							connection;
 	private Session										session;
-	private MessageConsumer						messageConsumer;
+	private volatile MessageConsumer						messageConsumer;
 	private volatile Thread						starterThread;
 	private final String								channelId;
 	private final Object								syncLock = new Object();
@@ -83,12 +86,25 @@ public class ActiveMQInboundTransport extends InboundTransportBase implements Ru
 	@Override
 	public void run()
 	{
+		final MessageConsumer consumer = messageConsumer;
+		if (consumer == null) {
+			LOGGER.warn("ActiveMQ Message Consumer was found uninitialized when worker thread started. Aborting.");
+			return;
+		}
+		
 		setRunningState(RunningState.STARTED);
-		while (isRunning())
+		while (isRunning() && !Thread.interrupted())
 		{
 			try
 			{
-				Message message = messageConsumer.receive(100);
+				if (consumer != messageConsumer) {
+					// may occur when cleanup() is called from elsewhere before thread has stopped.
+					if (isRunning() && !Thread.interrupted()) {
+						LOGGER.warn("ActiveMQ Message Consumer was closed before worker thread was signalled to stop.");
+					}
+					return;
+				}
+				Message message = consumer.receive(2500); // interruptible, so a longer timeout should be OK now
 				if (message != null)
 				{
 					if (message instanceof TextMessage)
@@ -160,6 +176,9 @@ public class ActiveMQInboundTransport extends InboundTransportBase implements Ru
 			}
 			catch (JMSException error)
 			{
+				if ("java.lang.InterruptedException".equals(error.getMessage())) {
+					return;
+				}
 				LOGGER.error(error.getMessage(), error);
 			}
 		}
@@ -181,68 +200,132 @@ public class ActiveMQInboundTransport extends InboundTransportBase implements Ru
 	public void start()
 	{
 		synchronized (syncLock) {
-			cleanup();
 			switch (getRunningState())
 			{
 				case STARTING:
 				case STARTED:
+					LOGGER.warn("Ignoring a request to start an ActiveMQ Input when it was already in a starting or started state.");
 					return;
 			}
-			if (starterThread == null || !starterThread.isAlive())
-			{
-				starterThread = new Thread(new ActiveMQByteInboundTransportStarter(this, 30000));
-				starterThread.start();
+
+			String validationErrorMessage = checkPropertiesForErrors();
+			if (validationErrorMessage != null) {
+				// don't bother to launch starter / monitor thread if validation fails; it will just cause repeated errors.
+				if (!validationErrorMessage.equals(errorMessage)) {
+					LOGGER.error("Could not start ActiveMQ Input due to invalid properties: "+ validationErrorMessage);
+					errorMessage = validationErrorMessage;
+				}
+				resetStarterThread(0); // in case of any existing monitoring thread
+				cleanup();
+				setRunningState(RunningState.ERROR);
+				return;
 			}
+				
+			if (starterThread != null) {
+				if (errorMessage != null && !errorMessage.isEmpty()) {
+					resetStarterThread(1000);
+				} else {
+					LOGGER.warn("Ignoring a request to start an ActiveMQ Input when it already appears to be monitoring for recovery.");
+					return;
+				}
+			}
+
+			cleanup();
+			errorMessage = "";
+			setRunningState(RunningState.STARTING);
+			starterThread = new Thread(new ActiveMQByteInboundTransportStarter(this, 30000));
+			starterThread.start();
 		}
 	}
 
-	@Override
-	public void stop()
-	{
-		synchronized (syncLock) {
-			if (!RunningState.STOPPED.equals(getRunningState()))
-			{
-				final Thread oldStarterThread = starterThread;
-				starterThread = null;
-				
-				setRunningState(RunningState.STOPPING);
-				cleanup();
-				setRunningState(RunningState.STOPPED);
-				
-				if (oldStarterThread != null && oldStarterThread != Thread.currentThread()) {
-					if (oldStarterThread.isAlive() && !oldStarterThread.isInterrupted()) {
-						oldStarterThread.interrupt();
+	private void resetStarterThread(long waitMillis) {
+		final Thread oldStarterThread = starterThread;
+		
+		if (oldStarterThread != null) {
+			oldStarterThread.interrupt(); // even if called from current thread
+			
+			synchronized (syncLock) {
+				if (oldStarterThread == starterThread) {
+					starterThread = null;
+				} else if (starterThread != null) {
+					LOGGER.warn("A new starter thread was launched while old starter thread was being reset.");
+					return;
+				}
+			}
+			
+			if (waitMillis > 0 && oldStarterThread == Thread.currentThread()) {
+				try {
+					oldStarterThread.join(waitMillis);
+					if (oldStarterThread.isAlive()) {
+						LOGGER.warn("Wait timeout (" + waitMillis + " ms) expired after requesting interruption on old starter thread.");
 					}
+				} catch (InterruptedException e) {
+					// ignore
 				}
 			}
 		}
+	}
+	
+	@Override
+	public void stop()
+	{
+		resetStarterThread(1000);
+		cleanup();
+		setRunningState(RunningState.STOPPED);
 	}
 
 	public String getErrorMessage()
 	{
 		return errorMessage;
 	}
-	
+
+	/*
 	@Override
-	public void validate() throws ValidationException {
-		String destType = getProperty("destinationType").getValueAsString();
-		if ("topic".equalsIgnoreCase(destType) || "queue".equalsIgnoreCase(destType) || destType == null || destType.isEmpty()) {
-			String destName = getProperty("destinationName").getValueAsString();
-			if (destName != null && !destName.isEmpty()) {
-				int queryPos = destName.indexOf('?');
-				if (queryPos >= 0) {
-					try {
-						URLDecoder.decode(destName.substring(queryPos), "UTF-8");
-					} catch (Exception e) {
-						throw new ValidationException("Optional parameters in Destination Name are not escaped properly and cannot be decoded.");
+	final public void validate() throws ValidationException {
+		super.validate();
+		// It seems to cause issues if the default implementation is overridden
+		// and does throw a ValidationException, although this is the normal way
+		// to indicate a validation error. (See also checkPropertiesForErrors.)
+		//
+		// However, if validate() does not raise ValidationException, validation
+		// errors are not displayed when editing an input in GeoEvent Manager.
+	}
+	*/
+
+	private String checkPropertiesForErrors() {
+		// This is used instead of overriding validate() since that gets called
+		// from somewhere in the REST admin API implementation where it does not
+		// property trap for the ValidationException.
+		// 
+		// If this issue is remedied, validate() can be implemented as follows:
+		
+		// String validationErrorMessage = checkPropertiesForErrors();
+		// if (validationErrorMessage != null)
+		//   throw new ValidationException(validationErrorMessage);
+		
+		try {
+			String destType = getProperty("destinationType").getValueAsString();
+			if ("topic".equalsIgnoreCase(destType) || "queue".equalsIgnoreCase(destType) || destType == null || destType.isEmpty()) {
+				String destName = getProperty("destinationName").getValueAsString();
+				if (destName != null && !destName.isEmpty()) {
+					int queryPos = destName.indexOf('?');
+					if (queryPos >= 0) {
+						try {
+							URLDecoder.decode(destName.substring(queryPos), "UTF-8");
+						} catch (Exception e) {
+							return "Optional parameters in Destination Name are not escaped properly and cannot be decoded.";
+						}
 					}
+				} else {
+					return "Destination Name must be configured. Current value is null or blank.";
 				}
 			} else {
-				throw new ValidationException("Destination Name must be configured. Current value is null or blank.");
+				return "A valid Destination Type must be configured. Acceptable values are 'queue' and 'topic' (case insensitive), or else leave blank for default ('queue').";
 			}
-		} else {
-			throw new ValidationException("A valid Destination Type must be configured. Acceptable values are 'queue' and 'topic' (case insensitive), or else leave blank for default ('queue').");
+		} catch (Exception e) {
+			return "An unexpected error occurred while checking properties: " + e.getMessage();
 		}
+		return null;
 	}
 
 	private boolean setup() throws TransportException {
@@ -284,6 +367,7 @@ public class ActiveMQInboundTransport extends InboundTransportBase implements Ru
 											LOGGER.error(errorMessage, exception);
 										
 											setRunningState(RunningState.STOPPING);
+											// TODO: interrupt worker thread?
 											cleanup();
 											setRunningState(RunningState.ERROR);
 										}
@@ -315,7 +399,7 @@ public class ActiveMQInboundTransport extends InboundTransportBase implements Ru
 
 								@Override
 								public void transportResumed() {
-									if (amqConn == connection) {
+									if (amqConn == connection && amqConn.isStarted()) {
 										LOGGER.warn("ActiveMQ input transport - connection resumed");
 									}
 								}
@@ -349,7 +433,7 @@ public class ActiveMQInboundTransport extends InboundTransportBase implements Ru
 				// In ActiveMQ 5.13.4, next line may raise an IllegalArgumentException even though
 				// the only declared exception type is JMSException - observed when the destination
 				// name contained optional parameters with invalid characters that are not escaped.
-				// Rather than trap for an unadvertised exception, this is prevented via validate().
+				// This is prevented by checking the parameters ahead of time (not using validate).
 				
 				destination = "topic".equalsIgnoreCase(destType)
 						? localSession.createTopic(destName)
@@ -393,8 +477,10 @@ public class ActiveMQInboundTransport extends InboundTransportBase implements Ru
 			}
 		} catch (JMSException|TransportException e) {
 			synchronized (syncLock) {
-				if (starterThread == Thread.currentThread() && connection != null) {
-					cleanup();
+				if (starterThread == Thread.currentThread()) {
+					if (connection != null) {
+						cleanup();
+					}
 					setRunningState(RunningState.ERROR);
 				}
 			}
@@ -454,50 +540,82 @@ public class ActiveMQInboundTransport extends InboundTransportBase implements Ru
 	{
 		final private ActiveMQInboundTransport	transport;
 		final private long						timeout;
+		private volatile Thread					worker;
 
 		public ActiveMQByteInboundTransportStarter(ActiveMQInboundTransport transport, long timeout)
 		{
 			this.transport = transport;
 			this.timeout = timeout;
 		}
-
+		
 		@Override
 		public void run()
 		{
-			while (starterThread != null && starterThread == Thread.currentThread())
-			{
-				switch (getRunningState())
+			try {
+				errorMessage = "";
+				
+				while (starterThread != null && starterThread == Thread.currentThread() && !Thread.interrupted()) 
 				{
-					case STOPPING:
-						break;
-					case STOPPED:
-					case ERROR:
+					switch (getRunningState())
 					{
-						try
-						{
-							setRunningState(RunningState.STARTING);
-							if (setup()) {
-								if (RunningState.STARTING.equals(getRunningState())) {
-									new Thread(transport).start();
-								}
-								// fall through to break out of switch and repeat monitor loop
-							} else {
-								// running state should have been set, or not, and cleanup called if appropriate
-								return;
+						case STOPPING:
+							break;
+						case STOPPED:
+							if (ClusterCommand.STOP.equals(getClusterCommand())) {
+								errorMessage = "";
+								return; // interrupt any worker and exit thread
 							}
-						}
-						catch (TransportException e)
+							// otherwise fall through (for initial try / retry?)
+						case STARTED:
+						case STARTING:
+							if (worker != null && worker.isAlive()) {
+								errorMessage = "";
+								break; // repeat monitoring loop
+							}
+						case ERROR:
 						{
-							errorMessage = e.getMessage();
-							LOGGER.error(errorMessage, e);
+							try {
+								interruptWorker(500);
+								cleanup();
+								setRunningState(RunningState.STARTING);
+								
+								String validationErrorMessage = checkPropertiesForErrors();
+								if (validationErrorMessage == null) {
+									if (setup()) {
+										if (RunningState.STARTING.equals(getRunningState())) {
+											worker = new Thread(transport);
+											worker.start();
+										}
+										// fall through to break out of switch and repeat monitor loop
+									} else {
+										// running state should have been set, or not, and cleanup called if appropriate
+										return;
+									}
+								} else {
+									if (!validationErrorMessage.equals(errorMessage)) {
+										LOGGER.error("Aborting setup of ActiveMQ Input due to invalid properties: " + validationErrorMessage);
+										errorMessage = validationErrorMessage;
+									}
+									setRunningState(RunningState.ERROR);
+									return;
+								}
+							}
+							catch (TransportException e)
+							{
+								errorMessage = e.getMessage();
+								LOGGER.error(errorMessage, e);
+							}
+							break;
 						}
-						break;
+						default:
+							errorMessage = "";
+							break;
 					}
-					default:
-						errorMessage = "";
-						break;
+					sleep();
 				}
-				sleep();
+			} finally {
+				interruptWorker(0);
+				cleanup();
 			}
 		}
 
@@ -505,11 +623,36 @@ public class ActiveMQInboundTransport extends InboundTransportBase implements Ru
 		{
 			try
 			{
-				Thread.sleep(timeout);
+				final Thread currentWorker = worker;
+				if (currentWorker != null && currentWorker.isAlive()) {
+					currentWorker.join(timeout);
+				} else {
+					Thread.sleep(timeout);
+				}
 			}
 			catch (InterruptedException e)
 			{
 				;
+			}
+		}
+		
+		private void interruptWorker(long waitMillis)
+		{
+			final Thread currentWorker = worker;
+			if (currentWorker != null) {
+				if (currentWorker.isAlive()) {
+					currentWorker.interrupt();
+					if (waitMillis > 0) {
+						try {
+							currentWorker.join(waitMillis);
+							if (currentWorker.isAlive()) {
+								LOGGER.warn("Wait timeout (" + waitMillis + " ms) expired after requesting interruption on old worker thread.");
+							}
+						} catch (InterruptedException e) {
+							// do nothing - caller may want to check Thread.interrupted()
+						}
+					}
+				}
 			}
 		}
 	}
