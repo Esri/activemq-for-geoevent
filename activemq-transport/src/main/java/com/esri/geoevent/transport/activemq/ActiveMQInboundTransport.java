@@ -117,8 +117,8 @@ public class ActiveMQInboundTransport extends InboundTransportBase implements Ru
 						}
 						catch (Throwable error)
 						{
-							LOGGER.error("MESSAGE_DECODING_ERROR", error.getMessage());
-							LOGGER.info(error.getMessage(), error);
+							LOGGER.error("MESSAGE_DECODING_ERROR", error, error.getMessage());
+							//LOGGER.info(error.getMessage(), error);
 						}
 						receive(bytes);
 					}
@@ -328,7 +328,7 @@ public class ActiveMQInboundTransport extends InboundTransportBase implements Ru
 		return null;
 	}
 
-	private boolean setup() throws TransportException {
+	private boolean setup() throws JMSException, TransportException {
 		try {
 			ActiveMQConnectionFactory factory = new ActiveMQConnectionFactory(getProperty("providerUrl").getValueAsString());
 			Property userNameProp = getProperty("userName");
@@ -484,10 +484,7 @@ public class ActiveMQInboundTransport extends InboundTransportBase implements Ru
 					setRunningState(RunningState.ERROR);
 				}
 			}
-			
-			TransportException containerException = new TransportException("ActiveMQ connection setup failed - " + e.getMessage());
-			containerException.initCause(e);
-			throw containerException;
+			throw e;
 		}
 	}
 
@@ -593,16 +590,18 @@ public class ActiveMQInboundTransport extends InboundTransportBase implements Ru
 									}
 								} else {
 									if (!validationErrorMessage.equals(errorMessage)) {
-										LOGGER.error("Aborting setup of ActiveMQ Input due to invalid properties: " + validationErrorMessage);
+										LOGGER.error("Aborting initialization of ActiveMQ Input due to invalid properties: " + validationErrorMessage);
 										errorMessage = validationErrorMessage;
 									}
 									setRunningState(RunningState.ERROR);
 									return;
 								}
 							}
-							catch (TransportException e)
+							catch (JMSException|TransportException e)
 							{
-								errorMessage = e.getMessage();
+								errorMessage = "ActiveMQ Input initialization failed with a " + 
+										(e instanceof JMSException ? "JMS" : "Transport") +
+										" Exception - " + e.getMessage();
 								LOGGER.error(errorMessage, e);
 							}
 							break;
