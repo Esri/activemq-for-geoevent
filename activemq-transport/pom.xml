@@ -7,12 +7,11 @@
 		<artifactId>activemq</artifactId>
 		<version>10.3.0</version>
 		<!-- Maintaining reported version number at 10.3.0 allows drop-in replacemnt of the old JAR, with
-		existing inputs / outputs continuing to operate, even though it now uses GeoEvent SDK 10.4.1. -->
 	</parent>
 	<groupId>com.esri.geoevent.transport</groupId>
 	<artifactId>activemq-transport</artifactId>
 	<name>Esri :: GeoEvent :: Transport :: ActiveMQ</name>
-	<version>10.4.1-5.13.4</version><!-- used in JAR filename but not in component version seen by GeoEvent -->
+	<version>10.4.1-5.14.0</version><!-- used in JAR filename but not in component version seen by GeoEvent -->
 	<packaging>bundle</packaging>
 	
 	<build>
