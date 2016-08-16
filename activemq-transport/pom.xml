@@ -7,6 +7,7 @@
 		<artifactId>activemq</artifactId>
 		<version>10.3.0</version>
 		<!-- Maintaining reported version number at 10.3.0 allows drop-in replacemnt of the old JAR, with
+		existing inputs / outputs continuing to operate, even though it now uses a later GeoEvent SDK. -->
 	</parent>
 	<groupId>com.esri.geoevent.transport</groupId>
 	<artifactId>activemq-transport</artifactId>

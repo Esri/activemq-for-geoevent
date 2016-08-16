@@ -66,6 +66,7 @@
 			<artifactId>activemq-spring</artifactId>
 			<version>${activemq.version}</version>
 		</dependency>
+		<!-- unknown if this is truly needed; ActiveMQ docs say it is used -->
 		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-api</artifactId>
