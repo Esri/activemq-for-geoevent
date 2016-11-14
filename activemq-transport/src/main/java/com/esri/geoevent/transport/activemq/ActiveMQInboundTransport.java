@@ -295,7 +295,7 @@ public class ActiveMQInboundTransport extends InboundTransportBase implements Ru
 	private String checkPropertiesForErrors() {
 		// This is used instead of overriding validate() since that gets called
 		// from somewhere in the REST admin API implementation where it does not
-		// property trap for the ValidationException.
+		// properly trap for the ValidationException.
 		// 
 		// If this issue is remedied, validate() can be implemented as follows:
 		
@@ -430,9 +430,11 @@ public class ActiveMQInboundTransport extends InboundTransportBase implements Ru
 				String destName = getProperty("destinationName").getValueAsString();
 				String destType = getProperty("destinationType").getValueAsString();
 
-				// In ActiveMQ 5.13.4, next line may raise an IllegalArgumentException even though
+				// In ActiveMQ 5.13/14, next line may raise an IllegalArgumentException even though
 				// the only declared exception type is JMSException - observed when the destination
 				// name contained optional parameters with invalid characters that are not escaped.
+				// (Not caught at compile time since IllegalArgumentException is a RuntimeException
+				// and as such is unchecked / does not need to be delared. Still quite unexpected.)
 				// This is prevented by checking the parameters ahead of time (not using validate).
 				
 				destination = "topic".equalsIgnoreCase(destType)
