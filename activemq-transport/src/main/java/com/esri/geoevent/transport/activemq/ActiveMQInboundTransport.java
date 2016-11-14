@@ -573,6 +573,9 @@ public class ActiveMQInboundTransport extends InboundTransportBase implements Ru
 						{
 							try {
 								interruptWorker(500);
+								if (Thread.interrupted()) { // starter thread interrupted while waiting
+									return; // fall through to finally block - don't start new worker
+								}
 								cleanup();
 								setRunningState(RunningState.STARTING);
 								
