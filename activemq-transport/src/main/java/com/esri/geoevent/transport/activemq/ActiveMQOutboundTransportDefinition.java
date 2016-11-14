@@ -24,6 +24,7 @@
 
 package com.esri.geoevent.transport.activemq;
 
+import com.esri.ges.core.property.LabeledValue;
 import com.esri.ges.core.property.PropertyDefinition;
 import com.esri.ges.core.property.PropertyException;
 import com.esri.ges.core.property.PropertyType;
@@ -31,6 +32,8 @@ import com.esri.ges.framework.i18n.BundleLogger;
 import com.esri.ges.framework.i18n.BundleLoggerFactory;
 import com.esri.ges.transport.TransportDefinitionBase;
 import com.esri.ges.transport.TransportType;
+import java.util.ArrayList;
+import java.util.List;
 
 public class ActiveMQOutboundTransportDefinition extends TransportDefinitionBase
 {
@@ -42,7 +45,10 @@ public class ActiveMQOutboundTransportDefinition extends TransportDefinitionBase
     try
     {
       propertyDefinitions.put("providerUrl", new PropertyDefinition("providerUrl", PropertyType.String, "tcp://localhost:61616", "${com.esri.geoevent.transport.activemq-transport.TRANSPORT_OUT_PROVIDER_URL_LBL}", "${com.esri.geoevent.transport.activemq-transport.TRANSPORT_OUT_PROVIDER_URL_DESC}", true, false));
-      propertyDefinitions.put("destinationType", new PropertyDefinition("destinationType", PropertyType.String, "Queue", "${com.esri.geoevent.transport.activemq-transport.TRANSPORT_OUT_JMS_DESTINATION_TYPE_LBL}", "${com.esri.geoevent.transport.activemq-transport.TRANSPORT_OUT_JMS_DESTINATION_TYPE_DESC}", true, false));
+      List<LabeledValue> allowedValues = new ArrayList<>(2);
+      allowedValues.add(new LabeledValue("Queue","Queue"));
+      allowedValues.add(new LabeledValue("Topic","Topic"));
+      propertyDefinitions.put("destinationType", new PropertyDefinition("destinationType", PropertyType.String, "Queue", "${com.esri.geoevent.transport.activemq-transport.TRANSPORT_OUT_JMS_DESTINATION_TYPE_LBL}", "${com.esri.geoevent.transport.activemq-transport.TRANSPORT_OUT_JMS_DESTINATION_TYPE_DESC}", true, false, allowedValues));
       propertyDefinitions.put("destinationName", new PropertyDefinition("destinationName", PropertyType.String, null, "${com.esri.geoevent.transport.activemq-transport.TRANSPORT_OUT_JMS_DESTINATION_NAME_LBL}", "${com.esri.geoevent.transport.activemq-transport.TRANSPORT_OUT_JMS_DESTINATION_NAME_DESC}", true, false));
       propertyDefinitions.put("userName", new PropertyDefinition("userName", PropertyType.String, null, "${com.esri.geoevent.transport.activemq-transport.TRANSPORT_OUT_USERNAME_LBL}", "${com.esri.geoevent.transport.activemq-transport.TRANSPORT_OUT_USERNAME_DESC}", false, false));
       propertyDefinitions.put("password", new PropertyDefinition("password", PropertyType.Password, null, "${com.esri.geoevent.transport.activemq-transport.TRANSPORT_OUT_PASSWORD_LBL}", "${com.esri.geoevent.transport.activemq-transport.TRANSPORT_OUT_PASSWORD_DESC}", false, false));
