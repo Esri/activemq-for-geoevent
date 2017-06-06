@@ -44,6 +44,8 @@ import javax.jms.Session;
 import javax.jms.TextMessage;
 
 import org.apache.activemq.ActiveMQConnectionFactory;
+import org.apache.activemq.ActiveMQConnection;
+import org.apache.activemq.transport.TransportListener;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -70,6 +72,41 @@ public class ActiveMQInboundTransport extends InboundTransportBase implements Ru
   @Override
   public void run()
   {
+    if (connection == null)
+    {
+      errorMessage = "ActiveMQ input transport thread started with uninitialized connection";
+      log.error("ActiveMQ input transport thread started with uninitialized connection");
+      setRunningState(RunningState.STOPPING);
+      cleanup();
+      setRunningState(RunningState.ERROR);
+      return;
+    }
+    
+    try
+    {
+      connection.start();
+      session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+      ActiveMQDestinationType type = com.esri.ges.util.Validator.validateEnum(ActiveMQDestinationType.class, getProperty("destinationType").getValueAsString(), ActiveMQDestinationType.Queue);
+      messageConsumer = session.createConsumer(type.equals(ActiveMQDestinationType.Topic) ? session.createTopic(getProperty("destinationName").getValueAsString()) : session.createQueue(getProperty("destinationName").getValueAsString()));
+    }
+    catch (JMSException exception)
+    {
+      String exceptionMessage = exception.getMessage();
+      if (exceptionMessage.equals("Stopped."))
+      {
+        log.warn("JMS Exception \"Stopped.\" during initialization of transport service thread. This may occur if the input is stopped before completing the connection.");
+      }
+      else
+      {
+        errorMessage = exceptionMessage;
+        log.error("JMS Exception - " + errorMessage, exception);
+        setRunningState(RunningState.STOPPING);
+        cleanup();
+        setRunningState(RunningState.ERROR);
+      }
+      return;
+    }
+    
     setRunningState(RunningState.STARTED);
     while (isRunning())
     {
@@ -201,16 +238,20 @@ public class ActiveMQInboundTransport extends InboundTransportBase implements Ru
   {
     try
     {
+      ActiveMQConnectionFactory factory = new ActiveMQConnectionFactory(getProperty("providerUrl").getValueAsString());
       if (getProperty("userName") != null && getProperty("password") != null)
       {
-        ConnectionFactory factory = new ActiveMQConnectionFactory(getProperty("userName").getValueAsString(), getProperty("password").getDecryptedValue(), getProperty("providerUrl").getValueAsString());
-        connection = factory.createConnection(getProperty("userName").getValueAsString(), getProperty("password").getDecryptedValue());
+        try
+        {
+          factory.setUserName(getProperty("userName").getValueAsString());
+          factory.setPassword(getProperty("password").getDecryptedValue());
+        }
+        catch (Exception e)
+        {
+          throw new TransportException("Password encrypted property access failed - " + e.getMessage());
+        }
       }
-      else
-      {
-        ConnectionFactory factory = new ActiveMQConnectionFactory(getProperty("providerUrl").getValueAsString());
-        connection = factory.createConnection();
-      }
+      connection = factory.createConnection();
       if (connection == null)
         throw new TransportException("Could not establish a JMS Connection to " + getProperty("providerUrl").getValueAsString());
       connection.setExceptionListener(new ExceptionListener()
@@ -225,20 +266,37 @@ public class ActiveMQInboundTransport extends InboundTransportBase implements Ru
           log.error(errorMessage);
         }
       });
-      connection.start();
-      session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
-      ActiveMQDestinationType type = com.esri.ges.util.Validator.validateEnum(ActiveMQDestinationType.class, getProperty("destinationType").getValueAsString(), ActiveMQDestinationType.Queue);
-      messageConsumer = session.createConsumer(type.equals(ActiveMQDestinationType.Topic) ? session.createTopic(getProperty("destinationName").getValueAsString()) : session.createQueue(getProperty("destinationName").getValueAsString()));
+      ActiveMQConnection amqConn = (ActiveMQConnection)connection;
+      if (amqConn.getTransport().isFaultTolerant()) {
+        amqConn.addTransportListener(new TransportListener()
+        {
+          @Override
+          public void onCommand(Object command) {
+            // ignore
+          }
+          @Override
+          public void onException(IOException exception) {
+            log.warn("ActiveMQ input transport - IO exception - " + exception.getMessage());
+          }
+          @Override
+          public void transportInterupted()
+          {
+            log.warn("ActiveMQ input transport - connection interrupted");
+          }
+          @Override
+          public void transportResumed()
+          {
+            log.warn("ActiveMQ input transport - connection resumed");
+          }
+        });
+      }
+      // connection should be ready to start(), but it may block indefinitely, so the rest is moved into run()
     }
     catch (JMSException e)
     {
       cleanup();
-      throw new TransportException(e.getMessage());
-    }
-    catch (Exception e)
-    {
-      cleanup();
-      throw new TransportException(e.getMessage());
+      setRunningState(RunningState.ERROR);
+      throw new TransportException("ActiveMQ connection setup failed - " + e.getMessage());
     }
   }
 
