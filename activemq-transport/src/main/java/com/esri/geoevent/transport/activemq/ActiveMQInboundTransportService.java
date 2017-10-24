@@ -28,16 +28,13 @@ import com.esri.ges.core.component.ComponentException;
 import com.esri.ges.transport.Transport;
 import com.esri.ges.transport.TransportServiceBase;
 
-public class ActiveMQInboundTransportService extends TransportServiceBase
-{
-  public ActiveMQInboundTransportService()
-  {
+public class ActiveMQInboundTransportService extends TransportServiceBase {
+  public ActiveMQInboundTransportService() {
     definition = new ActiveMQInboundTransportDefinition();
   }
 
   @Override
-  public Transport createTransport() throws ComponentException
-  {
+  public Transport createTransport() throws ComponentException {
     return new ActiveMQInboundTransport(definition);
   }
 }
