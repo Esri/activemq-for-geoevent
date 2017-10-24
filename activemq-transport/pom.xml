@@ -5,11 +5,12 @@
 	<parent>
 		<groupId>com.esri.geoevent.parent</groupId>
 		<artifactId>activemq</artifactId>
-		<version>10.3.0</version>
+		<version>10.4.1-5.15.2</version>
 	</parent>
 	<groupId>com.esri.geoevent.transport</groupId>
 	<artifactId>activemq-transport</artifactId>
 	<name>Esri :: GeoEvent :: Transport :: ActiveMQ</name>
+	<version>10.4.1-5.15.2</version>
 	<packaging>bundle</packaging>
 	
 	<build>
