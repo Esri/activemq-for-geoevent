@@ -4,7 +4,7 @@
 
 	<groupId>com.esri.geoevent.parent</groupId>
 	<artifactId>activemq</artifactId>
-	<version>10.5.1</version>
+	<version>10.4.1-5.15.2</version>
 	<packaging>pom</packaging>
 
 	<name>Esri :: GeoEvent :: ActiveMQ</name>
@@ -14,7 +14,7 @@
 		<contact.address>geoevent@esri.com</contact.address>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<maven.bundle.plugin.version>2.3.6</maven.bundle.plugin.version>
-		<activemq.version>5.15.0</activemq.version><!-- latest stable release -->
+		<activemq.version>5.15.2</activemq.version><!-- latest stable release -->
 	</properties>
 
 	<modules>
@@ -34,7 +34,7 @@
 		<dependency>
 			<groupId>com.esri.geoevent.sdk</groupId>
 			<artifactId>geoevent-sdk</artifactId>
-			<version>10.5.1</version><!-- update to version being targeted -->
+			<version>10.4.1</version><!-- target lowest supported version -->
 			<scope>provided</scope>
 			<exclusions>
 				<exclusion>
