@@ -24,7 +24,6 @@
 
 package com.esri.geoevent.transport.activemq;
 
-public enum ActiveMQDestinationType
-{
+public enum ActiveMQDestinationType {
   Queue, Topic
 }

@@ -32,62 +32,53 @@ import com.esri.ges.framework.i18n.BundleLogger;
 import com.esri.ges.framework.i18n.BundleLoggerFactory;
 import com.esri.ges.transport.TransportDefinitionBase;
 import com.esri.ges.transport.TransportType;
+
 import java.util.ArrayList;
 import java.util.List;
 
-public class ActiveMQInboundTransportDefinition extends TransportDefinitionBase
-{
+public class ActiveMQInboundTransportDefinition extends TransportDefinitionBase {
   private static final BundleLogger LOGGER = BundleLoggerFactory.getLogger(ActiveMQInboundTransportDefinition.class);
 
-  public ActiveMQInboundTransportDefinition()
-  {
+  public ActiveMQInboundTransportDefinition() {
     super(TransportType.INBOUND);
-    try
-    {
+    try {
       propertyDefinitions.put("providerUrl", new PropertyDefinition("providerUrl", PropertyType.String, "tcp://localhost:61616", "${com.esri.geoevent.transport.activemq-transport.TRANSPORT_IN_PROVIDER_URL_LBL}", "${com.esri.geoevent.transport.activemq-transport.TRANSPORT_IN_PROVIDER_URL_DESC}", true, false));
-	  List<LabeledValue> allowedValues = new ArrayList<>(2);
-	  allowedValues.add(new LabeledValue("Queue","Queue"));
-	  allowedValues.add(new LabeledValue("Topic","Topic"));
-	  propertyDefinitions.put("destinationType", new PropertyDefinition("destinationType", PropertyType.String, "Queue", "${com.esri.geoevent.transport.activemq-transport.TRANSPORT_IN_JMS_DESTINATION_TYPE_LBL}", "${com.esri.geoevent.transport.activemq-transport.TRANSPORT_IN_JMS_DESTINATION_TYPE_DESC}", true, false, allowedValues));
+      List<LabeledValue> allowedValues = new ArrayList<>(2);
+      allowedValues.add(new LabeledValue("Queue", "Queue"));
+      allowedValues.add(new LabeledValue("Topic", "Topic"));
+      propertyDefinitions.put("destinationType", new PropertyDefinition("destinationType", PropertyType.String, "Queue", "${com.esri.geoevent.transport.activemq-transport.TRANSPORT_IN_JMS_DESTINATION_TYPE_LBL}", "${com.esri.geoevent.transport.activemq-transport.TRANSPORT_IN_JMS_DESTINATION_TYPE_DESC}", true, false, allowedValues));
       propertyDefinitions.put("destinationName", new PropertyDefinition("destinationName", PropertyType.String, null, "${com.esri.geoevent.transport.activemq-transport.TRANSPORT_IN_JMS_DESTINATION_NAME_LBL}", "${com.esri.geoevent.transport.activemq-transport.TRANSPORT_IN_JMS_DESTINATION_NAME_DESC}", true, false));
       propertyDefinitions.put("userName", new PropertyDefinition("userName", PropertyType.String, null, "${com.esri.geoevent.transport.activemq-transport.TRANSPORT_IN_USERNAME_LBL}", "${com.esri.geoevent.transport.activemq-transport.TRANSPORT_IN_USERNAME_DESC}", false, false));
       propertyDefinitions.put("password", new PropertyDefinition("password", PropertyType.Password, null, "${com.esri.geoevent.transport.activemq-transport.TRANSPORT_IN_PASSWORD_LBL}", "${com.esri.geoevent.transport.activemq-transport.TRANSPORT_IN_PASSWORD_DESC}", false, false));
-    }
-    catch (PropertyException error)
-    {
-    	String errorMsg = LOGGER.translate("IN_INIT_ERROR", error.getMessage());
-    	LOGGER.error(errorMsg, error);
+    } catch (PropertyException error) {
+      String errorMsg = LOGGER.translate("IN_INIT_ERROR", error.getMessage());
+      LOGGER.error(errorMsg, error);
       throw new RuntimeException(errorMsg, error);
     }
   }
 
   @Override
-  public String getName()
-  {
+  public String getName() {
     return "ActiveMQ";
   }
 
   @Override
-  public String getDomain()
-  {
+  public String getDomain() {
     return "com.esri.geoevent.transport.inbound";
   }
 
   @Override
-  public String getVersion()
-  {
-  	return "10.3.0";
+  public String getVersion() {
+    return "10.3.0";
   }
-  
+
   @Override
-  public String getLabel()
-  {
+  public String getLabel() {
     return "${com.esri.geoevent.transport.activemq-transport.TRANSPORT_IN_LABEL}";
   }
-  
+
   @Override
-  public String getDescription()
-  {
+  public String getDescription() {
     return "${com.esri.geoevent.transport.activemq-transport.TRANSPORT_IN_DESC}";
   }
 }
