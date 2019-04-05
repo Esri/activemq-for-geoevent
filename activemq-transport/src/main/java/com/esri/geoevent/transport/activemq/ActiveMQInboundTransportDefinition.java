@@ -67,10 +67,6 @@ public class ActiveMQInboundTransportDefinition extends TransportDefinitionBase 
     return "com.esri.geoevent.transport.inbound";
   }
 
-  @Override
-  public String getVersion() {
-    return "10.4.1";
-  }
 
   @Override
   public String getLabel() {
