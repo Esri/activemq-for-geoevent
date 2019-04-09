@@ -153,6 +153,8 @@ public class ActiveMQInboundTransport extends InboundTransportBase implements Ru
         case STARTED:
           LOGGER.warn("Ignoring a request to start an ActiveMQ Input when it was already in a starting or started state.");
           return;
+        default:
+          break;
       }
 
       String validationErrorMessage = checkPropertiesForErrors();
