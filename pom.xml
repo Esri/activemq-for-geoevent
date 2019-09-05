@@ -15,7 +15,7 @@
     <contact.address>geoevent@esri.com</contact.address>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.bundle.plugin.version>3.5.0</maven.bundle.plugin.version>
-    <activemq.version>5.15.9</activemq.version>
+    <activemq.version>5.15.10</activemq.version>
   </properties>
 
   <modules>
