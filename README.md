@@ -1,6 +1,6 @@
 # activemq-for-geoevent
 
-ArcGIS 10.3 GeoEvent Extension for Server sample ActiveMQ connectors for connecting to ActiveMQ Message Servers.
+ArcGIS GeoEvent Server sample ActiveMQ connectors for connecting to ActiveMQ Message Servers.
 
 ![App](activemq-for-geoevent.png?raw=true)
 
@@ -12,24 +12,24 @@ ArcGIS 10.3 GeoEvent Extension for Server sample ActiveMQ connectors for connect
 
 Building the source code:
 
-1. Make sure Maven and ArcGIS GeoEvent Extension SDK are installed on your machine.
+1. Make sure Maven and ArcGIS GeoEvent Server SDK are installed on your machine.
 2. Run 'mvn install -Dcontact.address=[YourContactEmailAddress]'
 
 Installing the built jar files:
 
-1. Copy the *.jar files under the 'target' sub-folder(s) into the [ArcGIS-GeoEvent-Extension-Install-Directory]/deploy folder.
+1. Copy the *.jar files under the 'target' sub-folder(s) into the [ArcGIS-GeoEvent-Server-Install-Directory]/deploy folder.
 
 ## Requirements
 
-* ArcGIS GeoEvent Extension for Server.
-* ArcGIS GeoEvent Extension SDK.
-* Java JDK 1.7 or greater.
-* Maven.
+* ArcGIS GeoEvent Server.
+* ArcGIS GeoEvent Server SDK.
+* Java JDK 1.8 or later.
+* Maven 4.0 or later.
 
 ## Resources
 
-* [Download the connector's tutorial](http://www.arcgis.com/home/item.html?id=01ae4cf78a0c41bab6532206989c00f8) from the ArcGIS GeoEvent Extension Gallery
-* [ArcGIS GeoEvent Extension for Server Resources](http://links.esri.com/geoevent)
+* [Download the connector's tutorial](https://www.arcgis.com/home/item.html?id=40507af01cb5437196ee27064479aa38) from the ArcGIS GeoEvent Server Gallery
+* [ArcGIS GeoEvent Server Resources](http://links.esri.com/geoevent)
 * [ArcGIS Blog](http://blogs.esri.com/esri/arcgis/)
 * [twitter@esri](http://twitter.com/esri)
 
