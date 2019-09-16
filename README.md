@@ -57,3 +57,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 A copy of the license is available in the repository's [license.txt](license.txt?raw=true) file.
+
+
+This fork has been modified to use SSL for incoming ActiveMQ queues.  To modifiy the outgoing to use SSL, you would
+need to make similar changes in the outgoing transport and definition.
