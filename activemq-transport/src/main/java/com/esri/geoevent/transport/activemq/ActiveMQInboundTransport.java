@@ -35,6 +35,7 @@ import com.esri.ges.transport.TransportDefinition;
 import com.esri.ges.transport.TransportException;
 import org.apache.activemq.ActiveMQConnection;
 import org.apache.activemq.ActiveMQConnectionFactory;
+import org.apache.activemq.ActiveMQSslConnectionFactory;
 import org.apache.activemq.transport.TransportListener;
 
 import javax.jms.*;
@@ -276,8 +277,29 @@ public class ActiveMQInboundTransport extends InboundTransportBase implements Ru
   }
 
   private boolean setup() throws JMSException, TransportException {
+    String tempVal;
     try {
-      ActiveMQConnectionFactory factory = new ActiveMQConnectionFactory(getProperty("providerUrl").getValueAsString());
+      ActiveMQSslConnectionFactory factory = new ActiveMQSslConnectionFactory(getProperty("providerUrl").getValueAsString());
+      // tempVal = System.getenv("ARTEMIS_TS_PATH");
+      tempVal = getProperty("artemisTSPath").getValueAsString();
+      if (tempVal != null && !tempVal.isEmpty()){
+         // If there's a truststore path, then this is an ssl connection.
+        try {
+	    factory.setTrustStore(tempVal);
+	    //factory.setKeyStore(System.getenv("ARTEMIS_KS_PATH"));
+	    factory.setKeyStore(getProperty("artemisKSPath").getValueAsString());
+            // The password vars don't need to be set; they'll default to "passwd"
+     	    tempVal = getProperty("artemisTSPasswd").getValueAsString();
+            if (tempVal == null) tempVal = "password";
+      	    factory.setTrustStorePassword(tempVal);
+     	    //tempVal = System.getenv("ARTEMIS_KS_PASSWD");
+     	    tempVal = getProperty("artemisKSPasswd").getValueAsString();
+            if (tempVal == null) tempVal = "password";
+	    factory.setKeyStorePassword(tempVal);
+        } catch (Exception e) {
+          throw new TransportException("Set trust/keystore failed - " + e.getMessage());
+        }
+      }
       Property userNameProp = getProperty("userName");
       Property passwordProp = getProperty("password");
       if (userNameProp != null && passwordProp != null) {
