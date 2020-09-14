@@ -6,7 +6,7 @@
   <groupId>com.esri.geoevent.parent</groupId>
   <artifactId>activemq</artifactId>
 
-  <version>10.8.1</version>
+  <version>10.4.1</version>
 
   <packaging>pom</packaging>
 
@@ -17,10 +17,7 @@
     <contact.address>geoevent@esri.com</contact.address>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.bundle.plugin.version>4.2.1</maven.bundle.plugin.version>
-
     <activemq.version>5.16.0</activemq.version>
-
-    <geoevent.compat.version>10.4.1</geoevent.compat.version>
   </properties>
 
   <modules>
@@ -40,7 +37,7 @@
     <dependency>
       <groupId>com.esri.geoevent.sdk</groupId>
       <artifactId>geoevent-sdk</artifactId>
-      <version>[{geoevent.compat.version},)</version>
+      <version>[{project.version},)</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
@@ -48,31 +45,6 @@
       <artifactId>activemq-client</artifactId>
       <version>${activemq.version}</version>
     </dependency>
-    <!-- dependencies for embedding via the vm and peer transports included -->
-    <dependency>
-      <groupId>org.apache.activemq</groupId>
-      <artifactId>activemq-broker</artifactId>
-      <version>${activemq.version}</version>
-    </dependency>
-
-    <!-- although dependencies for persistent store are included, in most
-         cases best to use persistent=false in the vm or peer broker URL -->
-    <dependency>
-      <groupId>org.apache.activemq</groupId>
-      <artifactId>activemq-kahadb-store</artifactId>
-      <version>${activemq.version}</version>
-      <scope>provided</scope>
-      <optional>true</optional>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.activemq</groupId>
-      <artifactId>activemq-jdbc-store</artifactId>
-      <version>${activemq.version}</version>
-      <scope>provided</scope>
-      <optional>true</optional>
-    </dependency>
-
-    <!-- rely on transitive dependencies for right version of slf4j etc. -->
   </dependencies>
 
   <build>
