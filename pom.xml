@@ -5,9 +5,7 @@
 
   <groupId>com.esri.geoevent.parent</groupId>
   <artifactId>activemq</artifactId>
-
   <version>10.4.1</version>
-
   <packaging>pom</packaging>
 
   <name>Esri :: GeoEvent :: ActiveMQ</name>
