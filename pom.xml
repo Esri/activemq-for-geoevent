@@ -5,7 +5,7 @@
 
   <groupId>com.esri.geoevent.parent</groupId>
   <artifactId>activemq</artifactId>
-  <version>10.6.1</version>
+  <version>10.4.1</version>
   <packaging>pom</packaging>
 
   <name>Esri :: GeoEvent :: ActiveMQ</name>
@@ -14,8 +14,8 @@
   <properties>
     <contact.address>geoevent@esri.com</contact.address>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <maven.bundle.plugin.version>3.5.0</maven.bundle.plugin.version>
-    <activemq.version>5.15.10</activemq.version>
+    <maven.bundle.plugin.version>4.2.1</maven.bundle.plugin.version>
+    <activemq.version>5.16.0</activemq.version>
   </properties>
 
   <modules>
@@ -43,8 +43,6 @@
       <artifactId>activemq-client</artifactId>
       <version>${activemq.version}</version>
     </dependency>
-    <!-- dependencies for embedding via the vm and peer transports omitted -->
-    <!-- rely on transitive dependencies for right version of slf4j etc. -->
   </dependencies>
 
   <build>
