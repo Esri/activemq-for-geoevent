@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<template productVersion="10.4.0">
+    <geoEventServices/>
+    <inputs/>
+    <outputs/>
+    <geoEventDefinitions/>
+    <tags/>
+    <connectors>
+        <connector accessType="editable" label="Receive Features from an ActiveMQ JMS Server" name="esri-activemq-features-in" type="inbound">
+            <adapter uri="com.esri.ges.adapter.inbound/JSON/10.4.0"/>
+            <defaultName>activemq-features-in</defaultName>
+            <description>Receive JMS messages in Esri Feature JSON format from an ActiveMQ JMS server.</description>
+            <properties>
+                <advanced>
+                    <property label="Expected Date Format" name="CustomDateFormat" source="adapter"/>
+                    <property default="4326" label="Default Spatial Reference WKID" name="DefaultWKID" source="adapter"/>
+                </advanced>
+                <hidden/>
+                <shown>
+                    <property default="tcp://localhost:61616" label="Provider URL" name="providerUrl" source="transport"/>
+                    <property label="JMS Destination Name" name="destinationName" source="transport"/>
+                    <property default="Queue" label="JMS Destination Type" name="destinationType" source="transport"/>
+                    <property label="User name" name="userName" source="transport"/>
+                    <property label="Password" name="password" source="transport"/>
+                    <property default="true" label="Create GeoEvent Definition" name="CreateGeoEventDefinition" source="adapter"/>
+                    <property label="GeoEvent Definition Name (Existing)" name="ExistingGeoEventDefinitionName" source="adapter"/>
+                    <property default="Generated-GeoEventDefinition" label="GeoEvent Definition Name (New)" name="NewGeoEventDefinitionName" source="adapter"/>
+                </shown>
+            </properties>
+            <transport uri="com.esri.geoevent.transport.inbound/ActiveMQ/10.4.0"/>
+        </connector>
+        <connector accessType="editable" label="Receive Text from an ActiveMQ JMS Server" name="esri-activemq-text-in" type="inbound">
+            <adapter uri="com.esri.ges.adapter.inbound/Text/10.4.0"/>
+            <defaultName>activemq-text-in</defaultName>
+            <description>Receive JMS messages in text (CSV) format from an ActiveMQ JMS server.</description>
+            <properties>
+                <advanced>
+                    <property default="\n" label="Event Separator" name="MessageSeparator" source="adapter"/>
+                    <property default="," label="Field Separator" name="AttributeSeparator" source="adapter"/>
+                    <property label="Expected Date Format" name="CustomDateFormat" source="adapter"/>
+                    <property label="Language for Number Formatting" name="LocaleForNumberFormatter" source="adapter"/>
+                    <property default="false" label="Build Geometry From Fields" name="BuildGeometryFromFields" source="adapter"/>
+                    <property label="X Geometry Field" name="XGeometryField" source="adapter"/>
+                    <property label="Z Geometry Field" name="ZGeometryField" source="adapter"/>
+                    <property label="Y Geometry Field" name="YGeometryField" source="adapter"/>
+                    <property label="Default Spatial Reference" name="SpatialReferenceField" source="adapter"/>
+                </advanced>
+                <hidden/>
+                <shown>
+                    <property default="tcp://localhost:61616" label="Provider URL" name="providerUrl" source="transport"/>
+                    <property label="JMS Destination Name" name="destinationName" source="transport"/>
+                    <property default="Queue" label="JMS Destination Type" name="destinationType" source="transport"/>
+                    <property label="User name" name="userName" source="transport"/>
+                    <property label="Password" name="password" source="transport"/>
+                    <property default="true" label="Incoming Data Contains GeoEvent Definition" name="IncomingDataContainsGeoEventDefinition" source="adapter"/>
+                    <property default="true" label="Create Fixed GeoEvent Definitions" name="CreateFixedGeoEventDefinitions" source="adapter"/>
+                    <property label="GeoEvent Definition Name (Existing)" name="ExistingFixedGeoEventDefinitionName" source="adapter"/>
+                    <property default="Generated-GeoEventDefinition" label="GeoEvent Definition Name (New)" name="NewFixedGeoEventDefinitionName" source="adapter"/>
+                    <property default="true" label="Create Unrecognized Event Definitions" name="CreateUnrecognizedGeoEventDefinitions" source="adapter"/>
+                </shown>
+            </properties>
+            <transport uri="com.esri.geoevent.transport.inbound/ActiveMQ/10.4.0"/>
+        </connector>
+        <connector accessType="editable" label="Receive JSON from an ActiveMQ JMS Server" name="esri-activemq-json-in" type="inbound">
+            <adapter uri="com.esri.ges.adapter.inbound/Generic-JSON/10.4.0"/>
+            <defaultName>activemq-json-in</defaultName>
+            <description>Receive JMS messages in JSON format from an ActiveMQ JMS server.</description>
+            <properties>
+                <advanced>
+                    <property label="JSON Object Name" name="JsonObjectName" source="adapter"/>
+                    <property label="Expected Date Format" name="CustomDateFormat" source="adapter"/>
+                    <property default="false" label="Build Geometry From Fields" name="BuildGeometryFromFields" source="adapter"/>
+                    <property label="X Geometry Field" name="XGeometryField" source="adapter"/>
+                    <property label="Y Geometry Field" name="YGeometryField" source="adapter"/>
+                    <property label="Z Geometry Field" name="ZGeometryField" source="adapter"/>
+                    <property label="Default Spatial Reference" name="SpatialReferenceField" source="adapter"/>
+                    <property default="false" label="Learning Mode" name="isLearningMode" source="adapter"/>
+                </advanced>
+                <hidden>
+                    <property default="false" label="As GeoJson" name="asGeoJson" source="adapter"/>
+                </hidden>
+                <shown>
+                    <property default="tcp://localhost:61616" label="Provider URL" name="providerUrl" source="transport"/>
+                    <property label="JMS Destination Name" name="destinationName" source="transport"/>
+                    <property default="Queue" label="JMS Destination Type" name="destinationType" source="transport"/>
+                    <property label="User name" name="userName" source="transport"/>
+                    <property label="Password" name="password" source="transport"/>
+                    <property default="true" label="Create GeoEvent Definition" name="CreateGeoEventDefinition" source="adapter"/>
+                    <property default="Generated-GeoEventDefinition" label="GeoEvent Definition Name (New)" name="NewGeoEventDefinitionName" source="adapter"/>
+                    <property label="GeoEvent Definition Name (Existing)" name="ExistingGeoEventDefinitionName" source="adapter"/>
+                </shown>
+            </properties>
+            <transport uri="com.esri.geoevent.transport.inbound/ActiveMQ/10.4.0"/>
+        </connector>
+        <connector accessType="editable" label="Send Text to an ActiveMQ Server" name="esri-activemq-text-out" type="outbound">
+            <adapter uri="com.esri.ges.adapter.outbound/Text/10.4.0"/>
+            <defaultName>activemq-text-out</defaultName>
+            <description>Send JMS messages in text (CSV) format to an ActiveMQ JMS server.</description>
+            <properties>
+                <advanced>
+                    <property default="\n" label="Event Separator" name="MessageSeparator" source="adapter"/>
+                    <property default="," label="Field Separator" name="AttributeSeparator" source="adapter"/>
+                    <property default="ISO 8601 Format" label="Output Date Format" name="CustomDateFormatType" source="adapter"/>
+                    <property label="Custom Date Format" name="CustomDateFormat" source="adapter"/>
+                    <property label="Language for Number Formatting" name="LocaleForNumberFormatter" source="adapter"/>
+                </advanced>
+                <hidden>
+                    <property default="text/plain" label="MIME Type" name="mimeType" source="adapter"/>
+                </hidden>
+                <shown>
+                    <property default="tcp://localhost:61616" label="Provider URL" name="providerUrl" source="transport"/>
+                    <property label="JMS Destination Name" name="destinationName" source="transport"/>
+                    <property default="Queue" label="JMS Destination Type" name="destinationType" source="transport"/>
+                    <property label="User name" name="userName" source="transport"/>
+                    <property label="Password" name="password" source="transport"/>
+                </shown>
+            </properties>
+            <transport uri="com.esri.geoevent.transport.outbound/ActiveMQ/10.4.0"/>
+        </connector>
+    </connectors>
+</template>
