@@ -277,29 +277,47 @@ public class ActiveMQInboundTransport extends InboundTransportBase implements Ru
   }
 
   private boolean setup() throws JMSException, TransportException {
+    Property tempProp;
     String tempVal;
     try {
       ActiveMQSslConnectionFactory factory = new ActiveMQSslConnectionFactory(getProperty("providerUrl").getValueAsString());
-      // tempVal = System.getenv("ARTEMIS_TS_PATH");
-      tempVal = getProperty("artemisTSPath").getValueAsString();
+      
+      // Set trust store and keystore
+      tempProp = getProperty("artemisTSPath");
+      tempVal = tempProp != null ? tempProp.getValueAsString() : null;
       if (tempVal != null && !tempVal.isEmpty()){
-         // If there's a truststore path, then this is an ssl connection.
         try {
-	    factory.setTrustStore(tempVal);
-	    //factory.setKeyStore(System.getenv("ARTEMIS_KS_PATH"));
-	    factory.setKeyStore(getProperty("artemisKSPath").getValueAsString());
-            // The password vars don't need to be set; they'll default to "passwd"
-     	    tempVal = getProperty("artemisTSPasswd").getValueAsString();
-            if (tempVal == null) tempVal = "password";
-      	    factory.setTrustStorePassword(tempVal);
-     	    //tempVal = System.getenv("ARTEMIS_KS_PASSWD");
-     	    tempVal = getProperty("artemisKSPasswd").getValueAsString();
-            if (tempVal == null) tempVal = "password";
-	    factory.setKeyStorePassword(tempVal);
-        } catch (Exception e) {
-          throw new TransportException("Set trust/keystore failed - " + e.getMessage());
+          // If there's a truststore path, then this is an ssl connection.
+          factory.setTrustStore(tempVal);
+
+          // The password vars don't need to be set; they'll default to "password"
+          tempProp = getProperty("artemisTSPasswd");
+          tempVal = tempProp != null ? tempProp.getValueAsString() : null;
+          if (tempVal == null || tempVal.isEmpty()) tempVal = "password";
+          factory.setTrustStorePassword(tempVal);
+        }
+        catch (Exception e)
+        {
+          throw new TransportException("Set trust store failed - " + e.getMessage());
         }
       }
+      
+      tempProp = getProperty("artemisKSPath");
+      tempVal = tempProp != null ? tempProp.getValueAsString() : null;
+      if (tempVal != null && !tempVal.isEmpty())
+      {
+        try {
+          factory.setKeyStore(tempVal);
+
+          tempProp = getProperty("artemisKSPasswd");
+          tempVal = tempProp != null ? tempProp.getValueAsString() : null;
+          if (tempVal == null || tempVal.isEmpty()) tempVal = "password";
+          factory.setKeyStorePassword(tempVal);
+        } catch (Exception e) {
+          throw new TransportException("Set key store failed - " + e.getMessage());
+        }
+      }
+      
       Property userNameProp = getProperty("userName");
       Property passwordProp = getProperty("password");
       if (userNameProp != null && passwordProp != null) {
