@@ -16,7 +16,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.bundle.plugin.version>4.2.1</maven.bundle.plugin.version>
     <activemq.version>5.16.4</activemq.version>
-    <!-- can't go to 5.17 if GeoEvent is running under JRE8 - which 10.8.x and earlier do -->
+    <!-- can't go to 5.17 if ArcGIS GeoEvent Server is running under JRE8 - which it does in 10.8.x and earlier -->
   </properties>
 
   <modules>
@@ -26,9 +26,9 @@
   <dependencyManagement>
     <dependencies>
       <dependency>
-          <groupId>org.slf4j</groupId>
-          <artifactId>slf4j-api</artifactId>
-          <scope>provided</scope>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-api</artifactId>
+        <scope>provided</scope>
       </dependency>
     </dependencies>
   </dependencyManagement>
