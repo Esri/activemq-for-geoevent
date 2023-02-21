@@ -15,9 +15,11 @@
     <contact.address>geoevent@esri.com</contact.address>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.bundle.plugin.version>4.2.1</maven.bundle.plugin.version>
-    <activemq.version>5.16.5</activemq.version>
+    <activemq.version>5.16.6</activemq.version>
     <!--
-    This will be the final release of ActiveMQ 5.16.x.
+    This will be the absolute final release of ActiveMQ 5.16.x,
+    and as such the last version of ActiveMQ client to support
+    JRE 8, which is used in ArcGIS GeoEvent Server 10.8.1 and older.
     Upgrading to ActiveMQ 5.17.x or above will require
     ArcGIS GeoEvent Server 10.9.x or above at runtime.
     -->
